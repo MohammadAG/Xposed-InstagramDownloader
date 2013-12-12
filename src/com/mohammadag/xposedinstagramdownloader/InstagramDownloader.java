@@ -30,8 +30,9 @@ public class InstagramDownloader implements IXposedHookLoadPackage {
 		if (!lpparam.packageName.equals("com.instagram.android"))
 			return;
 		
-		Class<?> MediaOptionsButton = findClass("com.instagram.android.widget.MediaOptionsButton", lpparam.classLoader);
-		findAndHookMethod(MediaOptionsButton, "getMenuOptions", new XC_MethodHook() {
+		/* Hi Facebook team! Obfuscating the package isn't enough */
+		Class<?> MediaOptionsButton = findClass("com.instagram.android.feed.a.a.x", lpparam.classLoader);
+		findAndHookMethod(MediaOptionsButton, "b", new XC_MethodHook() {
 			@Override
 			protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 				CharSequence[] result = (CharSequence[]) param.getResult();
@@ -44,51 +45,51 @@ public class InstagramDownloader implements IXposedHookLoadPackage {
 					array.add(mDownloadString);
 				CharSequence[] newResult = new CharSequence[array.size()];
 				array.toArray(newResult);
-				setObjectField(param.thisObject, "mMenuOptions", newResult);
-				mMenuOptions = (CharSequence[]) getObjectField(param.thisObject, "mMenuOptions");
+				setObjectField(param.thisObject, "j", newResult);
+				mMenuOptions = (CharSequence[]) getObjectField(param.thisObject, "j");
 				param.setResult(mMenuOptions);
 			}
 		});
 		
-		findAndHookMethod(MediaOptionsButton, "showMenu", new XC_MethodHook() {
+		findAndHookMethod(MediaOptionsButton, "a", new XC_MethodHook() {
 			@Override
 			protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 				mCurrentMediaOptionButton = param.thisObject;
 			}
 		});
 		
-		Class<?> MenuClickListener = findClass("com.instagram.android.widget.MediaOptionsButton$MenuClickListener", lpparam.classLoader);
+		Class<?> MenuClickListener = findClass("com.instagram.android.feed.a.a.z", lpparam.classLoader);
 		findAndHookMethod(MenuClickListener, "onClick", DialogInterface.class, int.class, new XC_MethodHook() {
 			@Override
 			protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 				CharSequence localCharSequence = mMenuOptions[(Integer) param.args[1]];
 				if (mDownloadString.equals(localCharSequence)) {
-					Object mMedia = getObjectField(mCurrentMediaOptionButton, "mMedia");
-					Object mMediaType = getObjectField(mMedia, "mMediaType");
-					Object videoType = getStaticObjectField(mMediaType.getClass(), "VIDEO");
+					Object mMedia = getObjectField(mCurrentMediaOptionButton, "h");
+					Object mMediaType = getObjectField(mMedia, "b");
+					Object videoType = getStaticObjectField(mMediaType.getClass(), "b");
 					String linkToDownload;
 					String filenameExtension;
 					String descriptionType;
 					if (mMediaType.equals(videoType)) {
-						linkToDownload = (String) getObjectField(mMedia, "mHighResolutionVideoUrl");
+						linkToDownload = (String) getObjectField(mMedia, "C");
 						filenameExtension = "mp4";
 						descriptionType = "video";
 					} else {
-						linkToDownload = (String) getObjectField(mMedia, "mStandardResolutionUrl");
+						linkToDownload = (String) getObjectField(mMedia, "s");
 						filenameExtension = "jpg";
 						descriptionType = "photo";
 					}
 					
-					Context context = (Context) getObjectField(mCurrentMediaOptionButton, "mActivityContext");
+					Context context = (Context) getObjectField(mCurrentMediaOptionButton, "b");
 					
 					// Construct filename
 					// username_imageId.jpg
 					
 					Toast.makeText(context, "Downloading " + descriptionType, Toast.LENGTH_SHORT).show();
-					Object mUser = getObjectField(mMedia, "mUser");
-					String userName = (String) getObjectField(mUser, "mUsername");
-					String userFullName = (String) getObjectField(mUser, "mFullName");
-					String itemId = (String) getObjectField(mMedia, "mId");
+					Object mUser = getObjectField(mMedia, "p");
+					String userName = (String) getObjectField(mUser, "a");
+					String userFullName = (String) getObjectField(mUser, "b");
+					String itemId = (String) getObjectField(mMedia, "t");
 					String fileName = userName + "_" + itemId + "." + filenameExtension;
 					
 					File directory =
