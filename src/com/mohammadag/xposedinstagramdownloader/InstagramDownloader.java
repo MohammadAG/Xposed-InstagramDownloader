@@ -47,12 +47,18 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 
 	private static Context mContext;
 
+	// grep for MediaOptionsDialog.java
 	private static final String FEED_CLASS_NAME = "com.instagram.android.feed.a.a.ab";
+	// grep for Media.java
 	private static final String MEDIA_CLASS_NAME = "com.instagram.n.l";
+	// grep for MediaOptionsDialog.java
 	private static final String MEDIA_OPTIONS_BUTTON_CLASS_NAME = "com.instagram.android.feed.a.a.y";
 
+	// grep for one of items below
 	private static final String DS_PACKAGE_NAME = "com.instagram.android.directshare.e";
+	// grep for DirectSharePermalinkMoreOptionsDialog.java
 	private static final String DS_MEDIA_OPTIONS_BUTTON_CLASS_NAME = DS_PACKAGE_NAME + ".ad";
+	// grep for DirectSharePermalinkMoreOptionsDialog.java, should implement DialogInterface.OnClickListener
 	private static final String DS_PERM_MORE_OPTIONS_DIALOG_CLASS_NAME = DS_PACKAGE_NAME + ".ai";
 
 	private static void log(String log) {
@@ -326,11 +332,15 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 
 	@SuppressLint("NewApi")
 	private static final void showRequiresDonatePackage(final Context context) {
+		String title = ResourceHelper.getString(context, R.string.requires_donation_package_title);
+
 		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB) {
+			String message = ResourceHelper.getString(context, R.string.requires_donation_package_message);
+			String positiveButton = ResourceHelper.getString(context, R.string.go_to_play_store);
 			AlertDialog.Builder builder = new AlertDialog.Builder(context, android.R.style.Theme_Holo_Light_Dialog);
-			builder.setTitle("Requires donate package");
-			builder.setMessage("This feature requires the Instagram Downloader donation package");
-			builder.setPositiveButton("Go to Play Store", new OnClickListener() {
+			builder.setTitle(title);
+			builder.setMessage(message);
+			builder.setPositiveButton(positiveButton, new OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					String url = "market://details?id=com.mohammadag.xposedinstagramdownloaderdonate";
@@ -339,7 +349,8 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 					try {
 						context.startActivity(intent);
 					} catch (ActivityNotFoundException e) {
-						Toast.makeText(context, "Play Store not found", Toast.LENGTH_SHORT).show();
+						String playStoreNotFound = ResourceHelper.getString(context, R.string.play_store_not_found);
+						Toast.makeText(context, playStoreNotFound, Toast.LENGTH_SHORT).show();
 					}
 				}
 			});
@@ -348,11 +359,12 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 			String url = "market://details?id=com.mohammadag.xposedinstagramdownloaderdonate";
 			Intent intent = new Intent(Intent.ACTION_VIEW).setData(Uri.parse(url));
 			intent.setPackage("com.android.vending");
-			Toast.makeText(context, "Requires donate package", Toast.LENGTH_SHORT).show();
+			Toast.makeText(context, title, Toast.LENGTH_SHORT).show();
 			try {
 				context.startActivity(intent);
 			} catch (ActivityNotFoundException e) {
-				Toast.makeText(context, "Play Store not found", Toast.LENGTH_SHORT).show();
+				String playStoreNotFound = ResourceHelper.getString(context, R.string.play_store_not_found);
+				Toast.makeText(context, playStoreNotFound, Toast.LENGTH_SHORT).show();
 			}
 		}
 	}
