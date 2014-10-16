@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.mohammadag.xposedinstagramdownloader"
-    android:versionCode="17"
-    android:versionName="1.8.5" >
+    android:versionCode="22"
+    android:versionName="1.8.10" >
 
     <uses-sdk
         android:minSdkVersion="9"
@@ -17,7 +17,7 @@
             android:value="true" />
         <meta-data
             android:name="xposedminversion"
-            android:value="30+" />
+            android:value="42+" />
         <meta-data
             android:name="xposeddescription"
             android:value="Download Instagram photos and videos" />

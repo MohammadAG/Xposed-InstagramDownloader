@@ -7,7 +7,10 @@ import static de.robv.android.xposed.XposedHelpers.getStaticObjectField;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -47,18 +50,17 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 
 	private static Context mContext;
 
-	// grep for MediaOptionsDialog.java
-	private static final String FEED_CLASS_NAME = "com.instagram.android.feed.a.a.ab";
-	// grep for Media.java
-	private static final String MEDIA_CLASS_NAME = "com.instagram.n.l";
-	// grep for MediaOptionsDialog.java
-	private static final String MEDIA_OPTIONS_BUTTON_CLASS_NAME = "com.instagram.android.feed.a.a.y";
+	private static Class<?> MediaType;
+	private static Class<?> User;
 
-	// grep for one of items below
-	private static final String DS_PACKAGE_NAME = "com.instagram.android.directshare.e";
-	// grep for DirectSharePermalinkMoreOptionsDialog.java
+	private static final String FEED_CLASS_NAME = "com.instagram.android.feed.a.a.aa";
+	private static final String MEDIA_CLASS_NAME = "com.instagram.feed.d.l";
+	private static final String MEDIA_TYPE_CLASS_NAME = "com.instagram.model.a.a";
+	private static final String USER_CLASS_NAME = "com.instagram.user.c.a";
+	private static final String MEDIA_OPTIONS_BUTTON_CLASS_NAME = "com.instagram.android.feed.a.a.x";
+
+	private static final String DS_PACKAGE_NAME = "com.instagram.android.directshare.d";
 	private static final String DS_MEDIA_OPTIONS_BUTTON_CLASS_NAME = DS_PACKAGE_NAME + ".ad";
-	// grep for DirectSharePermalinkMoreOptionsDialog.java, should implement DialogInterface.OnClickListener
 	private static final String DS_PERM_MORE_OPTIONS_DIALOG_CLASS_NAME = DS_PACKAGE_NAME + ".ai";
 
 	private static void log(String log) {
@@ -95,6 +97,8 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 		final Class<?> MediaOptionsButton = findClass(MEDIA_OPTIONS_BUTTON_CLASS_NAME, lpparam.classLoader);
 		final Class<?> DirectSharePermalinkMoreOptionsDialog = findClass(DS_MEDIA_OPTIONS_BUTTON_CLASS_NAME,
 				lpparam.classLoader);
+		MediaType = findClass(MEDIA_TYPE_CLASS_NAME, lpparam.classLoader);
+		User = findClass(USER_CLASS_NAME, lpparam.classLoader);
 
 		XC_MethodHook injectDownloadIntoCharSequenceHook = new XC_MethodHook() {
 			@Override
@@ -227,11 +231,10 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 				}
 			}
 		});
-
 	}
 
 	@SuppressLint("NewApi")
-	private static void downloadMedia(Object sourceButton, Object mMedia) {
+	private static void downloadMedia(Object sourceButton, Object mMedia) throws IllegalAccessException, IllegalArgumentException {
 		Field contextField =
 				XposedHelpers.findFirstFieldByExactType(sourceButton.getClass(), Context.class);
 		if (mContext == null) {
@@ -245,39 +248,31 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 		}
 
 		log("Downloading media...");
-		Object mMediaType = getObjectField(mMedia, "b");
-
-		Field[] mMediaFields = mMedia.getClass().getDeclaredFields();
-		for (Field iField : mMediaFields) {
-			String fieldType = iField.getClass().getName();
-			if (fieldType.contains("com.instagram.model")
-					&& !fieldType.contains("people")) {
-				try {
-					mMediaType = iField.get(mMedia);
-				} catch (Exception e) {
-					log("Failed to get MediaType class");
-					Toast.makeText(mContext,
-							ResourceHelper.getString(mContext, R.string.mediatype_error),
-							Toast.LENGTH_LONG).show();
-					e.printStackTrace();
-					return;
-				}
-			}
+		Object mMediaType = getFieldByType(mMedia, MediaType);
+		if (mMediaType == null) {
+			log("Failed to get MediaType");
+			return;
 		}
 
-		Object videoType = getStaticObjectField(mMediaType.getClass(), "b");
+		Object videoType = getStaticObjectField(MediaType, "b");
 
 		String linkToDownload;
 		String filenameExtension;
 		String descriptionType;
 		int descriptionTypeId = R.string.photo;
+		
+//		String[] qualities = { "m", "l", "k", "o", "n" };
+//		for (String field : qualities) {
+//			XposedBridge.log("InstagramDownloader: " + field + ": " + (String) getObjectField(mMedia, field));
+//		}
+
 		if (mMediaType.equals(videoType)) {
-			linkToDownload = (String) getObjectField(mMedia, "E");
+			linkToDownload = (String) getObjectField(mMedia, "n");
 			filenameExtension = "mp4";
 			descriptionType = "video";
 			descriptionTypeId = R.string.video;
 		} else {
-			linkToDownload = (String) getObjectField(mMedia, "s");
+			linkToDownload = (String) getObjectField(mMedia, "m");
 			filenameExtension = "jpg";
 			descriptionType = "photo";
 			descriptionTypeId = R.string.photo;
@@ -288,10 +283,27 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 		descriptionType = ResourceHelper.getString(mContext, descriptionTypeId);
 		String toastMessage = ResourceHelper.getString(mContext, R.string.downloading, descriptionType);
 		Toast.makeText(mContext, toastMessage, Toast.LENGTH_SHORT).show();
-		Object mUser = getObjectField(mMedia, "p");
-		String userName = (String) getObjectField(mUser, "b");
-		String userFullName = (String) getObjectField(mUser, "c");
-		String itemId = (String) getObjectField(mMedia, "t");
+
+		Object mUser = getFieldByType(mMedia, User);
+		String userName, userFullName;
+		if (mUser == null) {
+			log("Failed to get User from Media, using placeholders");
+			userName = "username_placeholder";
+			userFullName = "Unknown name";
+		} else {
+			userName = (String) getObjectField(mUser, "a");
+			userFullName = (String) getObjectField(mUser, "b");
+		}
+
+		String itemId;
+		try {
+			itemId = (String) getObjectField(mMedia, "e");
+		} catch (Throwable t) {
+			log("Failed to get Media item id, using current time in filename");
+			t.printStackTrace();
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH);
+			itemId = sdf.format(new Date());
+		}
 		String fileName = userName + "_" + itemId + "." + filenameExtension;
 
 		if (TextUtils.isEmpty(userFullName)) {
@@ -374,5 +386,15 @@ public class InstagramDownloader implements IXposedHookLoadPackage, IXposedHookZ
 			return mDownloadString;
 
 		return mDownloadTranslated;
+	}
+
+	private static Object getFieldByType(Object object, Class<?> type) {
+		Field f = XposedHelpers.findFirstFieldByExactType(object.getClass(), type);
+		try {
+			return f.get(object);
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 }
